@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Admin - Campus Bus Tracker{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0">Add a bus</h2>
+  <form method="post" action="{{ url_for('admin_add_bus') }}">
+    <input type="text" name="name" placeholder="Bus name or number (e.g. Bus 12)" required>
+    <input type="text" name="route" placeholder="Route (e.g. Tambaram - Velachery - College)" required>
+    <input type="number" name="capacity" placeholder="Seat capacity" min="1" max="200" required>
+    <button type="submit">Add bus</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Buses</h2>
+  {% if buses %}
+  <table>
+    <thead><tr><th>Bus</th><th>Route</th><th>Seats</th><th>Driver link</th><th></th></tr></thead>
+    <tbody>
+    {% for b in buses %}
+      <tr>
+        <td>{{ b.name }}</td>
+        <td>{{ b.route }}</td>
+        <td>{{ b.seats_available }} free / {{ b.capacity }}</td>
+        <td><code>/driver/{{ b.driver_token }}</code><br>
+            <span class="muted">Give this private link only to the bus driver.</span></td>
+        <td>
+          <form method="post" action="{{ url_for('admin_delete_bus', bus_id=b.id) }}"
+                onsubmit="return confirm('Delete this bus?');">
+            <button class="danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">No buses yet. Add one above.</p>
+  {% endif %}
+</div>
+{% endblock %}

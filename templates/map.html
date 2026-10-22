@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Live Map - Campus Bus Tracker{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<div class="card">
+  <h2 style="margin-top:0">Live bus locations</h2>
+  <div id="map" style="height:420px;border-radius:8px;"></div>
+  <p class="muted" id="status">Loading...</p>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">Seat availability</h3>
+  <table>
+    <thead><tr><th>Bus</th><th>Route</th><th>Seats available</th><th>Last update</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const map = L.map('map').setView([13.0827, 80.2707], 12);  // default view: Chennai
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const markers = {};
+  let fitted = false;
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+
+  function popup(b) {
+    return '<b>' + esc(b.name) + '</b><br>' + esc(b.route) +
+           '<br>Seats available: ' + b.seats_available + ' / ' + b.capacity;
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch('/api/buses');
+      if (res.status === 401) { location.href = '/login'; return; }
+      const buses = await res.json();
+      const rows = document.getElementById('rows');
+      rows.innerHTML = '';
+      const located = [];
+      buses.forEach(b => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + esc(b.name) + '</td><td>' + esc(b.route) + '</td><td>' +
+          b.seats_available + ' / ' + b.capacity + '</td><td class="muted">' +
+          esc(b.updated_at ? b.updated_at.replace('T', ' ').replace('+00:00', ' UTC') : 'no data yet') + '</td>';
+        rows.appendChild(tr);
+        if (b.lat != null && b.lng != null) {
+          located.push([b.lat, b.lng]);
+          if (markers[b.id]) {
+            markers[b.id].setLatLng([b.lat, b.lng]).setPopupContent(popup(b));
+          } else {
+            markers[b.id] = L.marker([b.lat, b.lng]).addTo(map).bindPopup(popup(b));
+          }
+        }
+      });
+      if (!fitted && located.length) { map.fitBounds(located, {padding: [40, 40], maxZoom: 15}); fitted = true; }
+      document.getElementById('status').textContent =
+        buses.length ? 'Auto-refreshing every 5 seconds.' : 'No buses added yet. Ask the admin to add buses.';
+    } catch (e) {
+      document.getElementById('status').textContent = 'Could not reach the server. Retrying...';
+    }
+  }
+  refresh();
+  setInterval(refresh, 5000);
+</script>
+{% endblock %}

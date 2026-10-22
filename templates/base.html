@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Campus Bus Tracker{% endblock %}</title>
+  <style>
+    :root { --accent:#1f3a5f; --bg:#f5f7fa; --card:#fff; --text:#222; --muted:#667; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Calibri, Arial, sans-serif; background:var(--bg); color:var(--text); }
+    header { background:var(--accent); color:#fff; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; }
+    header a { color:#fff; margin-left:14px; text-decoration:none; }
+    main { max-width: 960px; margin: 16px auto; padding: 0 12px; }
+    .card { background:var(--card); border-radius:8px; padding:16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+    input, button { font: inherit; padding:8px 10px; margin:4px 0; }
+    input { width:100%; border:1px solid #bbc; border-radius:6px; }
+    button, .btn { background:var(--accent); color:#fff; border:0; border-radius:6px; cursor:pointer; padding:8px 14px; text-decoration:none; display:inline-block; }
+    button.secondary { background:#667; }
+    button.danger { background:#a33; }
+    .flash { background:#fff3cd; border:1px solid #e6d58f; padding:8px 12px; border-radius:6px; margin-bottom:12px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid #e3e6ea; vertical-align:top; }
+    .muted { color:var(--muted); font-size:.9em; }
+    code { background:#eef; padding:2px 4px; border-radius:4px; word-break:break-all; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Campus Bus Tracker</strong>
+    <nav>
+      {% if session.get('user_id') %}
+        <span>{{ session.get('name') }}</span>
+        <a href="{{ url_for('map_page') }}">Live map</a>
+        {% if session.get('role') == 'admin' %}<a href="{{ url_for('admin_page') }}">Admin</a>{% endif %}
+        <a href="{{ url_for('logout') }}">Log out</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main>
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

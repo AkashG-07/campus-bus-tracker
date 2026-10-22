@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Driver - {{ bus.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-top:0">{{ bus.name }}</h2>
+  <p class="muted">{{ bus.route }}</p>
+
+  <h3>1. Share location</h3>
+  <button id="startBtn">Start sharing my location</button>
+  <button id="stopBtn" class="secondary" style="display:none">Stop sharing</button>
+  <p id="locStatus" class="muted">Not sharing.</p>
+
+  <h3>2. Seats occupied (capacity {{ bus.capacity }})</h3>
+  <button class="secondary" id="minus">-</button>
+  <strong id="occupied" style="margin:0 12px;font-size:1.4em">{{ bus.occupied }}</strong>
+  <button class="secondary" id="plus">+</button>
+  <p id="seatStatus" class="muted"></p>
+
+  <h3>Demo mode</h3>
+  <p class="muted">No GPS on your laptop? Simulate a bus moving, so you can watch it on the student map.</p>
+  <button class="secondary" id="simBtn">Simulate movement</button>
+</div>
+<script>
+  const token = {{ token|tojson }};
+  const capacity = {{ bus.capacity }};
+  let occupied = {{ bus.occupied }};
+  let watchId = null, simTimer = null, lastSent = 0;
+
+  async function send(lat, lng) {
+    const res = await fetch('/api/driver/' + token + '/location', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({lat, lng})
+    });
+    return res.ok;
+  }
+
+  document.getElementById('startBtn').onclick = () => {
+    if (!navigator.geolocation) { document.getElementById('locStatus').textContent = 'Geolocation not supported.'; return; }
+    watchId = navigator.geolocation.watchPosition(async pos => {
+      const now = Date.now();
+      if (now - lastSent < 4000) return;   // send at most every 4 seconds
+      lastSent = now;
+      const ok = await send(pos.coords.latitude, pos.coords.longitude);
+      document.getElementById('locStatus').textContent =
+        (ok ? 'Sharing. Last sent ' : 'Send failed at ') + new Date().toLocaleTimeString();
+    }, err => {
+      document.getElementById('locStatus').textContent = 'Location error: ' + err.message +
+        ' (phones need HTTPS or localhost for GPS).';
+    }, {enableHighAccuracy: true});
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'inline-block';
+  };
+
+  document.getElementById('stopBtn').onclick = () => {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+    document.getElementById('startBtn').style.display = 'inline-block';
+    document.getElementById('stopBtn').style.display = 'none';
+    document.getElementById('locStatus').textContent = 'Not sharing.';
+  };
+
+  async function setSeats(n) {
+    n = Math.max(0, Math.min(capacity, n));
+    const res = await fetch('/api/driver/' + token + '/seats', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({occupied: n})
+    });
+    if (res.ok) {
+      const d = await res.json();
+      occupied = d.occupied;
+      document.getElementById('occupied').textContent = occupied;
+      document.getElementById('seatStatus').textContent = d.seats_available + ' seats available.';
+    }
+  }
+  document.getElementById('plus').onclick = () => setSeats(occupied + 1);
+  document.getElementById('minus').onclick = () => setSeats(occupied - 1);
+
+  // Demo: moves in a small loop around a starting point (central Chennai) every 2 seconds.
+  document.getElementById('simBtn').onclick = () => {
+    const btn = document.getElementById('simBtn');
+    if (simTimer) { clearInterval(simTimer); simTimer = null; btn.textContent = 'Simulate movement'; return; }
+    let t = 0;
+    btn.textContent = 'Stop simulation';
+    simTimer = setInterval(() => {
+      t += 0.15;
+      send(13.0827 + 0.01 * Math.sin(t), 80.2707 + 0.01 * Math.cos(t));
+    }, 2000);
+  };
+</script>
+{% endblock %}
